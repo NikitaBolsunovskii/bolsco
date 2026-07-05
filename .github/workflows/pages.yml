@@ -1,0 +1,55 @@
+# ЭТАЛОН (reference-артефакт) — canonical-копия workflow, который публикует bolsco.ru.
+# РЕАЛЬНОЕ место исполнения: repo `NikitaBolsunovskii/bolsco` → `.github/workflows/pages.yml`.
+# Добавляется ВРУЧНУЮ владельцем (Story 7.2, owner-run, прецедент 6.1); deploy-job из 7.1
+# его НЕ пушит (rsync `--exclude='.github'` + deploy-key без scope `workflow`).
+#
+# 🚨 Это НЕ активный workflow данного репо (`bolsco-portal`). Он намеренно лежит в `docs/deploy/`,
+#    а НЕ в `.github/workflows/`: Actions читает workflow'ы только из `.github/workflows/`. У
+#    `bolsco-portal` нет Pages → `permissions: pages/id-token` не к чему применить, а `deploy-pages`
+#    падал бы красным на каждый push. Здесь это статический файл-документ, не исполняемый workflow.
+#
+# Пины `uses:` сверены с текущим официальным `actions/starter-workflows/pages/static.yml`
+# (кейс «готовая статика в корне, без build-шага» — точно наш): checkout@v4, configure-pages@v5,
+# upload-pages-artifact@v3, deploy-pages@v5. При копировании в `bolsco` держать в синхроне с
+# official-starter (мажоры Pages-экшенов иногда бампаются).
+#
+# Дельта против legacy («Deploy from a branch»): Actions-пайплайн НЕ гоняет Jekyll →
+# `_astro/*` (underscore-папка) отдаётся как есть, зависимость от `.nojekyll` становится moot.
+# `.nojekyll` остаётся в `dist/`/`public/` как страховка на случай отката Source к branch-механизму.
+# `CNAME` остаётся в артефакте/`dist/` как страховка кастом-домена.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Least-privilege для Pages-деплоя: запись в Pages + OIDC-токен деплоя, read к контенту.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Не рвём идущую публикацию; сериализуем деплои Pages.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'                      # весь корень repo bolsco = сайт
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
