@@ -1,0 +1,1 @@
+function e(e,t){let n,r=(...r)=>{n!==void 0&&clearTimeout(n),n=setTimeout(()=>{n=void 0,e(...r)},t)};return r.cancel=()=>{n!==void 0&&(clearTimeout(n),n=void 0)},r}export{e as t};
